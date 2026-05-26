@@ -7,7 +7,7 @@ const path = require("path");
 const readline = require("readline");
 const cp = require("child_process");
 
-const VERSION = "1.0.0";
+const VERSION = "1.0.1";
 
 const args = new Set(process.argv.slice(2));
 
@@ -530,22 +530,10 @@ async function confirmAndDelete(matches) {
     output: process.stdout,
   });
 
-  let deleteAll = false;
   try {
     for (const file of matches) {
-      if (deleteAll) {
-        removePath(file);
-        continue;
-      }
-
-      const answer = await ask(rl, `Delete ${file}? [y/N/a/q] `);
+      const answer = await ask(rl, `Delete ${file}? [y/N] `);
       const normalized = answer.trim().toLowerCase();
-      if (normalized === "q") break;
-      if (normalized === "a") {
-        deleteAll = true;
-        removePath(file);
-        continue;
-      }
       if (normalized === "y" || normalized === "yes") removePath(file);
     }
   } finally {

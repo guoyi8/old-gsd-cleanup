@@ -9,7 +9,7 @@ const cp = require("child_process");
 
 const bin = path.join(__dirname, "..", "bin", "old-gsd-cleanup.js");
 
-function runWithHome(home, args = ["--dry-run", "--skip-npm"], cwd = path.dirname(bin), envOverrides = {}) {
+function runWithHome(home, args = ["--dry-run", "--skip-npm"], cwd = path.dirname(bin), envOverrides = {}, input = "") {
   const appData = path.join(home, "AppData", "Roaming");
   const localAppData = path.join(home, "AppData", "Local");
   const homeRoot = path.parse(home).root;
@@ -27,6 +27,7 @@ function runWithHome(home, args = ["--dry-run", "--skip-npm"], cwd = path.dirnam
       ...envOverrides,
     },
     encoding: "utf8",
+    input,
   });
   result.stdout = result.stdout.replace(/\\/g, "/");
   result.stderr = result.stderr.replace(/\\/g, "/");
@@ -102,6 +103,15 @@ withTempHome((home) => {
   const result = runWithHome(home, ["--skip-npm"]);
   assert.strictEqual(result.status, 0, result.stderr);
   assert.match(result.stdout, /Non-interactive terminal detected/);
+  assert.ok(fs.existsSync(target));
+});
+
+withTempHome((home) => {
+  const target = path.join(home, ".codex", "get-shit-done", "README.md");
+  write(target, "Installed by get-shit-done-cc from @gsd-build/sdk.");
+
+  const result = runWithHome(home, ["--skip-npm"], path.dirname(bin), {}, "a\n");
+  assert.strictEqual(result.status, 0, result.stderr);
   assert.ok(fs.existsSync(target));
 });
 
