@@ -6,7 +6,7 @@
   "type": "commonjs",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/guoyi8/old-gsd-cleanup.git"
+    "url": "https://github.com/guoyi8/old-gsd-cleanup.git"
   },
   "bugs": {
     "url": "https://github.com/guoyi8/old-gsd-cleanup/issues"
