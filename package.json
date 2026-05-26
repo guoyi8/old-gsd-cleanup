@@ -1,12 +1,12 @@
 {
   "name": "old-gsd-cleanup",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Remove legacy gsd-build/get-shit-done npm packages and old runtime traces without touching open-gsd packages.",
   "license": "MIT",
   "type": "commonjs",
   "repository": {
     "type": "git",
-    "url": "https://github.com/guoyi8/old-gsd-cleanup.git"
+    "url": "git+https://github.com/guoyi8/old-gsd-cleanup.git"
   },
   "bugs": {
     "url": "https://github.com/guoyi8/old-gsd-cleanup/issues"
