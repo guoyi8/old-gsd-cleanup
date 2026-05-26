@@ -62,9 +62,9 @@ npm cache clean --force
 - `agents/gsd-*`
 - `hooks/gsd-*`
 
-如果路径或文件内容显示它属于 `@opengsd/*` 或 `open-gsd/get-shit-done-redux`，即使文件里提到了旧 `gsd-build` 迁移信息，也会跳过。
+如果路径显示它属于 `@opengsd/*` 或 `open-gsd/get-shit-done-redux`，即使文件里提到了旧 `gsd-build` 迁移信息，也会跳过。普通 `gsd-*` 文件只因迁移说明提到 `@opengsd` 时也会跳过；但明确的旧安装目录，例如 `get-shit-done/` 或 `get-shit-done-cc/`，仍会被识别为 legacy 目标。
 
-缓存目录也不会整目录清空。工具只会删除带有强旧包标记的具体缓存文件或明确的 legacy 缓存子目录，例如 `get-shit-done-cc/`；不会因为存在 `~/.cache/gsd` 就直接删除整个目录。
+缓存目录也不会整目录清空。工具只会匹配带有强旧包标记的具体缓存文件或明确的 legacy 缓存子目录，例如 `get-shit-done-cc/`；不会因为存在 `~/.cache/gsd` 就直接删除整个目录。实际删除同样遵守 `--dry-run`、`--yes` 和逐项确认流程。
 
 工具会跳过会话历史、日志、全局状态文件等高误伤区域，例如：
 

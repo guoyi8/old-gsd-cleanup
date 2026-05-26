@@ -71,7 +71,7 @@ async function main() {
     logStep("Skipping runtime file scan (--skip-file-scan).");
   } else {
     await scanAndConfirmOldRuntimeFiles();
-    cleanupCaches();
+    await cleanupCaches();
   }
 
   console.log("\nDone.");
@@ -167,9 +167,10 @@ async function scanAndConfirmOldRuntimeFiles() {
     for (const file of walkFiles(root)) {
       if (shouldSkipFile(file)) continue;
       if (!containsLegacyMarker(file)) continue;
-      if (isProtectedOpenGsdPath(root, file) || containsOpenGsdMarker(file)) continue;
+      if (isProtectedOpenGsdPath(root, file)) continue;
 
       const target = cleanupTargetForLegacyFile(root, file);
+      if (target && containsOpenGsdMarker(file) && !isStrongLegacyTarget(root, target)) continue;
       if (target) targets.set(target, target);
     }
   }
@@ -184,44 +185,7 @@ async function scanAndConfirmOldRuntimeFiles() {
   console.log(`Found ${matches.length} legacy install artifact(s):\n`);
   for (const file of matches) console.log(`  ${file}`);
 
-  if (options.dryRun) return;
-
-  if (options.yes) {
-    for (const file of matches) removePath(file);
-    return;
-  }
-
-  if (!process.stdin.isTTY) {
-    console.log("\nNon-interactive terminal detected; not deleting files without --yes.");
-    return;
-  }
-
-  const rl = readline.createInterface({
-    input: process.stdin,
-    output: process.stdout,
-  });
-
-  let deleteAll = false;
-  try {
-    for (const file of matches) {
-      if (deleteAll) {
-        removePath(file);
-        continue;
-      }
-
-      const answer = await ask(rl, `Delete ${file}? [y/N/a/q] `);
-      const normalized = answer.trim().toLowerCase();
-      if (normalized === "q") break;
-      if (normalized === "a") {
-        deleteAll = true;
-        removePath(file);
-        continue;
-      }
-      if (normalized === "y" || normalized === "yes") removePath(file);
-    }
-  } finally {
-    rl.close();
-  }
+  await confirmAndDelete(matches);
 }
 
 function ask(rl, prompt) {
@@ -230,55 +194,66 @@ function ask(rl, prompt) {
 
 function runtimeRoots() {
   const home = os.homedir();
-  const runtimeDirs = [
+  const xdgConfigHome = process.env.XDG_CONFIG_HOME ? expandTilde(process.env.XDG_CONFIG_HOME) : path.join(home, ".config");
+  const roots = [
+    envDir("CLAUDE_CONFIG_DIR") || path.join(home, ".claude"),
+    envDir("CODEX_HOME") || path.join(home, ".codex"),
+    envDir("CURSOR_CONFIG_DIR") || path.join(home, ".cursor"),
+    envDir("TRAE_CONFIG_DIR") || path.join(home, ".trae"),
+    envDir("COPILOT_CONFIG_DIR") || path.join(home, ".copilot"),
+    envDir("GEMINI_CONFIG_DIR") || path.join(home, ".gemini"),
+    envDir("ANTIGRAVITY_CONFIG_DIR") || path.join(home, ".gemini", "antigravity"),
+    envDir("OPENCODE_CONFIG_DIR") || envConfigFileDir("OPENCODE_CONFIG") || path.join(xdgConfigHome, "opencode"),
+    envDir("KILO_CONFIG_DIR") || envConfigFileDir("KILO_CONFIG") || path.join(xdgConfigHome, "kilo"),
+    envDir("WINDSURF_CONFIG_DIR") || path.join(home, ".codeium", "windsurf"),
+    envDir("AUGMENT_CONFIG_DIR") || path.join(home, ".augment"),
+    envDir("QWEN_CONFIG_DIR") || path.join(home, ".qwen"),
+    envDir("HERMES_HOME") || path.join(home, ".hermes"),
+    envDir("CODEBUDDY_CONFIG_DIR") || path.join(home, ".codebuddy"),
+    envDir("CLINE_CONFIG_DIR") || path.join(home, ".cline"),
+  ];
+
+  roots.push(...localRuntimeRoots());
+  return unique(roots);
+}
+
+function localRuntimeRoots() {
+  const cwd = process.cwd();
+  return [
     ".claude",
-    ".codex",
-    ".cursor",
-    ".trae",
-    ".trae-cn",
-    ".copilot",
-    ".github",
+    ".opencode",
     ".gemini",
-    path.join(".config", "opencode"),
-    path.join(".config", "kilo"),
-    path.join(".codeium", "windsurf"),
+    ".kilo",
+    ".codex",
+    path.join(".github", "skills"),
+    ".agent",
+    ".cursor",
     ".windsurf",
     ".augment",
+    ".trae",
     ".qwen",
     ".hermes",
     ".codebuddy",
     ".cline",
-    ".agent",
-  ];
-
-  const roots = [
-    ...runtimeDirs.map((entry) => path.join(home, entry)),
-    ...runtimeDirs.map((entry) => path.join(process.cwd(), entry)),
-  ];
-
-  if (process.platform === "win32") {
-    if (process.env.APPDATA) {
-      roots.push(
-        path.join(process.env.APPDATA, "opencode"),
-        path.join(process.env.APPDATA, "kilo"),
-        path.join(process.env.APPDATA, "Cursor"),
-        path.join(process.env.APPDATA, "Trae")
-      );
-    }
-    if (process.env.LOCALAPPDATA) {
-      roots.push(
-        path.join(process.env.LOCALAPPDATA, "opencode"),
-        path.join(process.env.LOCALAPPDATA, "kilo"),
-        path.join(process.env.LOCALAPPDATA, "Cursor"),
-        path.join(process.env.LOCALAPPDATA, "Trae")
-      );
-    }
-  }
-
-  return unique(roots);
+  ].map((entry) => path.join(cwd, entry));
 }
 
-function cleanupCaches() {
+function envDir(name) {
+  return process.env[name] ? expandTilde(process.env[name]) : null;
+}
+
+function envConfigFileDir(name) {
+  return process.env[name] ? path.dirname(expandTilde(process.env[name])) : null;
+}
+
+function expandTilde(filePath) {
+  if (filePath && filePath.startsWith("~/")) {
+    return path.join(os.homedir(), filePath.slice(2));
+  }
+  return filePath;
+}
+
+async function cleanupCaches() {
   logStep("Cleaning legacy GSD cache directories");
 
   const home = os.homedir();
@@ -300,9 +275,10 @@ function cleanupCaches() {
     for (const file of walkFiles(dir)) {
       if (shouldSkipFile(file)) continue;
       if (!containsStrongLegacyMarker(file)) continue;
-      if (isProtectedOpenGsdPath(dir, file) || containsOpenGsdMarker(file)) continue;
+      if (isProtectedOpenGsdPath(dir, file)) continue;
 
       const target = cleanupTargetForLegacyCacheFile(dir, file);
+      if (target && containsOpenGsdMarker(file) && !isStrongLegacyTarget(dir, target)) continue;
       if (target) targets.set(target, target);
     }
   }
@@ -313,10 +289,11 @@ function cleanupCaches() {
     return;
   }
 
+  console.log(`Found ${matches.length} legacy GSD cache artifact(s):\n`);
   for (const target of matches) {
-    console.log(`delete cache ${target}`);
-    if (!options.dryRun) removePath(target);
+    console.log(`  ${target}`);
   }
+  await confirmAndDelete(matches);
 }
 
 function existsDir(filePath) {
@@ -438,6 +415,10 @@ function cleanupTargetForLegacyFile(root, file) {
   const parts = rel.split(path.sep);
   const lowerParts = parts.map((part) => part.toLowerCase());
 
+  if (path.basename(root).toLowerCase() === "skills" && parts[0] && /^gsd[-_:]/i.test(parts[0])) {
+    return path.join(root, parts[0]);
+  }
+
   const getShitDoneIndex = lowerParts.indexOf("get-shit-done");
   if (getShitDoneIndex >= 0 && containsStrongLegacyMarker(file)) {
     return path.join(root, ...parts.slice(0, getShitDoneIndex + 1));
@@ -454,7 +435,8 @@ function cleanupTargetForLegacyFile(root, file) {
   }
 
   const skillsIndex = lowerParts.indexOf("skills");
-  if (skillsIndex >= 0 && parts[skillsIndex + 1] && /^gsd[-_:]/i.test(parts[skillsIndex + 1])) {
+  if (skillsIndex >= 0 && parts[skillsIndex + 1] &&
+      (parts[skillsIndex + 1].toLowerCase() === "gsd" || /^gsd[-_:]/i.test(parts[skillsIndex + 1]))) {
     return path.join(root, ...parts.slice(0, skillsIndex + 2));
   }
 
@@ -508,12 +490,66 @@ function cleanupTargetForLegacyCacheFile(root, file) {
   return file;
 }
 
+function isStrongLegacyTarget(root, target) {
+  const rel = path.relative(root, target);
+  if (!rel || rel.startsWith("..")) return false;
+
+  const parts = rel.split(path.sep).map((part) => part.toLowerCase());
+  return parts.includes("get-shit-done") ||
+    parts.includes("get-shit-done-cc") ||
+    parts.includes("@gsd-build") ||
+    parts.includes("gsd-build") ||
+    parts.includes("gsd-user-files-backup") ||
+    parts.includes("gsd-migration-journal");
+}
+
 function removePath(file) {
   try {
     fs.rmSync(file, { recursive: true, force: true });
     console.log(`deleted ${file}`);
   } catch (err) {
     console.warn(`warn: failed to delete ${file}: ${err.message}`);
+  }
+}
+
+async function confirmAndDelete(matches) {
+  if (options.dryRun) return;
+
+  if (options.yes) {
+    for (const file of matches) removePath(file);
+    return;
+  }
+
+  if (!process.stdin.isTTY) {
+    console.log("\nNon-interactive terminal detected; not deleting files without --yes.");
+    return;
+  }
+
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout,
+  });
+
+  let deleteAll = false;
+  try {
+    for (const file of matches) {
+      if (deleteAll) {
+        removePath(file);
+        continue;
+      }
+
+      const answer = await ask(rl, `Delete ${file}? [y/N/a/q] `);
+      const normalized = answer.trim().toLowerCase();
+      if (normalized === "q") break;
+      if (normalized === "a") {
+        deleteAll = true;
+        removePath(file);
+        continue;
+      }
+      if (normalized === "y" || normalized === "yes") removePath(file);
+    }
+  } finally {
+    rl.close();
   }
 }
 
