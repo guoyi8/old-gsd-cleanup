@@ -1,0 +1,31 @@
+{
+  "name": "old-gsd-cleanup",
+  "version": "0.1.0",
+  "description": "Remove legacy gsd-build/get-shit-done npm packages and old runtime traces without touching open-gsd packages.",
+  "license": "MIT",
+  "type": "commonjs",
+  "bin": {
+    "old-gsd-cleanup": "bin/old-gsd-cleanup.js"
+  },
+  "files": [
+    "bin",
+    "test",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "check": "node bin/old-gsd-cleanup.js --help && node bin/old-gsd-cleanup.js --dry-run --skip-npm --skip-file-scan && node test/cli-safety.test.js"
+  },
+  "keywords": [
+    "gsd",
+    "get-shit-done",
+    "cleanup",
+    "uninstall",
+    "claude",
+    "codex",
+    "cursor"
+  ],
+  "engines": {
+    "node": ">=16"
+  }
+}
