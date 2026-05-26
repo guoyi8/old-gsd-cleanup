@@ -14,7 +14,7 @@ function runWithHome(home, args = ["--dry-run", "--skip-npm"], cwd = path.dirnam
   const localAppData = path.join(home, "AppData", "Local");
   const homeRoot = path.parse(home).root;
   const homePath = `${path.sep}${path.relative(homeRoot, home)}`;
-  return cp.spawnSync(process.execPath, [bin, ...args], {
+  const result = cp.spawnSync(process.execPath, [bin, ...args], {
     cwd,
     env: {
       ...process.env,
@@ -28,6 +28,9 @@ function runWithHome(home, args = ["--dry-run", "--skip-npm"], cwd = path.dirnam
     },
     encoding: "utf8",
   });
+  result.stdout = result.stdout.replace(/\\/g, "/");
+  result.stderr = result.stderr.replace(/\\/g, "/");
+  return result;
 }
 
 function write(file, text) {
