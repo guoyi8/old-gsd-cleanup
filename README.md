@@ -50,7 +50,7 @@ npm cache clean --force
 - `gsd-build/get-shit-done`
 - `github.com/gsd-build`
 
-覆盖的常见目录包括 Claude Code、Codex、Cursor、Trae、Copilot、Gemini、OpenCode、Kilo、Windsurf、Augment、Qwen、Hermes、CodeBuddy、Cline、Antigravity 等工具的配置目录。
+扫描目录按旧 `get-shit-done-cc` installer 的安装路径解析，包括 Claude Code、Codex、Cursor、Trae、Copilot、Gemini、OpenCode、Kilo、Windsurf、Augment、Qwen、Hermes、CodeBuddy、Cline、Antigravity 等 runtime 的全局配置目录，以及当前项目下对应的本地安装目录。`OPENCODE_CONFIG_DIR`、`KILO_CONFIG_DIR`、`CODEX_HOME` 等 runtime 环境变量会被尊重。
 
 ## 安全边界
 
@@ -108,39 +108,6 @@ npx old-gsd-cleanup --run-old-npx --yes
 --skip-file-scan   跳过 runtime 配置目录扫描
 --help, -h         显示帮助
 --version, -v      显示版本
-```
-
-## 本地开发
-
-```bash
-npm run check
-```
-
-查看将要发布到 npm 的文件：
-
-```bash
-npm pack --dry-run
-```
-
-如果本机沙箱或权限不允许 npm 写默认缓存，可以临时指定缓存目录：
-
-```bash
-npm --cache .npm-cache pack --dry-run
-```
-
-## 发布到 npm
-
-确认包名可用后：
-
-```bash
-npm login
-npm publish --access public
-```
-
-发布后，用户可以直接运行：
-
-```bash
-npx old-gsd-cleanup
 ```
 
 ## License
